@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from 'react'
-import { age, ageBand, collect, eighteenth, fixture, moduleOf, PNTS, useFlow, type Data } from '../flow.ts'
+import { age, ageBand, collect, eighteenth, fixture, moduleOf, person, PNTS, useFlow, type Data } from '../flow.ts'
 import { COUNTRIES, STATES } from '../places.ts'
 import { Avatar, Banner, Caps, Choices, Dialog, Field, Icon, KV, Module, Placeholder, Screen, Select } from '../ui.tsx'
 
@@ -191,7 +191,55 @@ export function Jurisdiction() {
   )
 }
 
-// Occupation, income, household and religion have no option lists in the spec yet.
+// The spec leaves four lists open ("standardized industry categories", "income ranges", …). These use
+// NAICS sectors, Census-style income brackets and marital status, and major religious traditions.
+const INDUSTRIES = [
+  'Agriculture, forestry & fishing',
+  'Mining, oil & gas',
+  'Utilities',
+  'Construction',
+  'Manufacturing',
+  'Wholesale trade',
+  'Retail trade',
+  'Transportation & warehousing',
+  'Information & media',
+  'Finance & insurance',
+  'Real estate',
+  'Professional, scientific & technical services',
+  'Management of companies',
+  'Administrative & support services',
+  'Education',
+  'Health care & social assistance',
+  'Arts, entertainment & recreation',
+  'Accommodation & food services',
+  'Public administration',
+  'Other',
+]
+const INCOMES = [
+  'Under $25,000',
+  '$25,000–$49,999',
+  '$50,000–$74,999',
+  '$75,000–$99,999',
+  '$100,000–$149,999',
+  '$150,000–$199,999',
+  '$200,000 or more',
+]
+const HOUSEHOLDS = ['Single', 'Married', 'Living with a partner', 'Separated', 'Divorced', 'Widowed']
+const RELIGIONS = [
+  'Protestant',
+  'Catholic',
+  'Orthodox Christian',
+  'Latter-day Saint',
+  'Other Christian',
+  'Jewish',
+  'Muslim',
+  'Hindu',
+  'Buddhist',
+  'Sikh',
+  'Other religion',
+  'No religion',
+]
+
 const DEMOGRAPHICS: [label: string, name: keyof Data, options: string[]][] = [
   [
     'Education level',
@@ -203,17 +251,17 @@ const DEMOGRAPHICS: [label: string, name: keyof Data, options: string[]][] = [
     'employment',
     ['Full-time', 'Part-time', 'Self-employed', 'Student', 'Retired', 'Unemployed', 'Caregiver', 'Other'],
   ],
-  ['Occupation / industry', 'industry', []],
-  ['Household income (range)', 'income', []],
+  ['Occupation / industry', 'industry', INDUSTRIES],
+  ['Household income (range)', 'income', INCOMES],
   ['Housing status', 'housing', ['Own', 'Rent', 'Live with family', 'Student housing', 'Other']],
-  ['Relationship / household', 'household', []],
+  ['Relationship / household', 'household', HOUSEHOLDS],
   ['Children', 'children', ['No children', 'Children under 18', 'Adult children', 'Both']],
   [
     'Military affiliation',
     'military',
     ['Active duty', 'Reserve', 'National Guard', 'Veteran', 'Military household', 'None'],
   ],
-  ['Religion', 'religion', []],
+  ['Religion', 'religion', RELIGIONS],
 ]
 
 const NO_DEMOGRAPHICS = {
@@ -497,7 +545,7 @@ export function Privacy() {
         multi
         variant="chips"
         options={['Display name + district', 'Top issues', 'Party', 'Ideology', 'Demographics']}
-        hint={`Default: only '${fixture.display} · ${fixture.district}' is visible to others.`}
+        hint={`Default: only '${person(data).display} · ${fixture.district}' is visible to others.`}
       />
     </Screen>
   )
@@ -508,6 +556,7 @@ const answered = (v: string | string[]) => (typeof v === 'string' ? v !== '' && 
 export function Review() {
   const { data, submit } = useFlow()
   const module = moduleOf(data)
+  const me = person(data)
   const enter = <button className="btn primary">Enter GC</button>
   const onSubmit = () => submit({ context: 'personal' })
 
@@ -573,9 +622,9 @@ export function Review() {
       <section className="section">
         <h2 className="label green">Public to other users</h2>
         <div className="card person">
-          <Avatar initials={fixture.initials} />
+          <Avatar initials={me.initials} />
           <span>
-            <b>{inUS ? `${fixture.display} · ${fixture.district}` : fixture.display}</b>
+            <b>{inUS ? `${me.display} · ${fixture.district}` : me.display}</b>
             <small>
               Following: {inUS ? `${fixture.reps.length} legislators · ` : ''}
               {data.issues.length} issues
@@ -587,7 +636,7 @@ export function Review() {
         <h2 className="label red">Private — never shown</h2>
         <KV
           rows={[
-            ['Full name', fixture.name],
+            ['Full name', me.full],
             ['Address', inUS ? `${data.street}, ${data.city} ${data.state}` : data.country],
             ['Classification', CITIZENSHIP.find((c) => c.value === data.citizenship)?.label],
             [

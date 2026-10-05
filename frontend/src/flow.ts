@@ -4,6 +4,9 @@ export const PNTS = 'Prefer not to say'
 
 // Every field is a string or string[] so forms can be read generically (see collect).
 export const initial = {
+  firstName: '',
+  middleInitial: '',
+  lastName: '',
   id: '',
   recovering: '',
   recovery: '',
@@ -42,6 +45,7 @@ export const initial = {
   news: '',
   participation: [] as string[],
   issues: [] as string[],
+  // Confirmed defaults: these three on; advertising and third-party use off.
   uses: ['Personalization', 'Civic research', 'Aggregated analytics'],
   visible: ['Display name + district'],
   // government
@@ -163,12 +167,11 @@ export function collect(form: HTMLFormElement, prev: Data): Partial<Data> {
   return out as Partial<Data>
 }
 
-// ponytail: sample data standing in for the API. No screen collects the user's name yet,
-// and districts, representatives and office approvals need a backend. Replace when it exists.
+// ponytail: sample data standing in for the API. Districts, representatives, office approvals and a
+// returning user's saved profile all need a backend. Replace when it exists.
 export const fixture = {
-  name: 'Ivan Rodriguez',
-  display: 'Ivan R.',
-  initials: 'IR',
+  firstName: 'Ivan',
+  lastName: 'Rodriguez',
   district: 'VA-11',
   districts: [
     ['Congressional district', 'VA-11'],
@@ -185,6 +188,16 @@ export const fixture = {
   member: 'Rep. Jane Doe (VA-11)',
   admin: 'Sarah Kim (Chief of Staff)',
   adminShort: 'S. Kim',
+}
+
+/** Name as entered at sign-up. Others only ever see first name and last initial ("Ivan R."). */
+export function person(d: Data) {
+  const { firstName, middleInitial, lastName } = d.firstName && d.lastName ? d : { ...fixture, middleInitial: '' }
+  return {
+    full: [firstName, middleInitial && `${middleInitial.toUpperCase()}.`, lastName].filter(Boolean).join(' '),
+    display: `${firstName} ${lastName[0].toUpperCase()}.`,
+    initials: (firstName[0] + lastName[0]).toUpperCase(),
+  }
 }
 
 export type Flow = {

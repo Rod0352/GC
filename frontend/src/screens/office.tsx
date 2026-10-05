@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { fixture, moduleOf, useFlow, type Data } from '../flow.ts'
+import { fixture, moduleOf, person, useFlow, type Data } from '../flow.ts'
 import { Avatar, Banner, Caps, Choices, Dialog, Field, Icon, KV, Module, Placeholder, Screen, Select } from '../ui.tsx'
 import type { IconName } from '../ui.tsx'
 
@@ -251,7 +251,7 @@ export function EnterWorkspace() {
       className="entering"
       top={
         <div className="switch" aria-hidden="true">
-          <Avatar initials={fixture.initials} lg />
+          <Avatar initials={person(data).initials} lg />
           <Icon name="arrow-r" />
           <span className="tile navy">
             <Icon name="gov" size={28} />
@@ -293,7 +293,7 @@ export function Home() {
   const [open, setOpen] = useState(!data.context)
 
   const contexts: [id: string, icon: IconName, title: string, sub: string][] = [
-    ['personal', 'people', `Personal — ${fixture.display} · ${fixture.district}`, moduleOf(data).name],
+    ['personal', 'people', `Personal — ${person(data).display} · ${fixture.district}`, moduleOf(data).name],
     ['office', 'gov', data.office || fixture.office, `${roleLine(data)} · verified`],
   ]
 

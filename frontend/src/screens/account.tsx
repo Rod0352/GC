@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useFlow } from '../flow.ts'
+import { collect, useFlow } from '../flow.ts'
 import { Banner, Choices, Field, Icon, Placeholder, Screen } from '../ui.tsx'
 
 export function Welcome() {
@@ -31,14 +31,13 @@ export function Welcome() {
 }
 
 export function CreateAccount() {
-  const { submit } = useFlow()
-  const id = useRef<HTMLInputElement>(null)
+  const { data, submit } = useFlow()
   return (
     <Screen
       bar="Create account"
       progress={['Account', 1, 9]}
       heading="Create your GC account"
-      sub="Email or phone, plus a password or passkey."
+      sub="Your name, an email or phone, and a password or passkey."
       onSubmit={(p) => submit({ ...p, recovering: '' })}
       footer={
         <>
@@ -49,8 +48,12 @@ export function CreateAccount() {
         </>
       }
     >
+      <div className="grid2">
+        <Field label="First name" name="firstName" autoComplete="given-name" required />
+        <Field label="Middle initial (optional)" name="middleInitial" autoComplete="additional-name" maxLength={1} />
+      </div>
+      <Field label="Last name" name="lastName" autoComplete="family-name" required />
       <Field
-        ref={id}
         label="Email or phone"
         name="id"
         icon="mail"
@@ -72,7 +75,12 @@ export function CreateAccount() {
       <button
         type="button"
         className="btn secondary"
-        onClick={() => id.current?.reportValidity() && submit({ id: id.current.value, recovering: '' })}
+        onClick={(e) => {
+          // A passkey replaces the password, so check every field except that one (it has no name).
+          const form = e.currentTarget.form!
+          const named = [...form.elements].filter((el) => el instanceof HTMLInputElement && el.name) as HTMLInputElement[]
+          if (named.every((el) => el.reportValidity())) submit({ ...collect(form, data), recovering: '' })
+        }}
       >
         <Icon name="key" />
         Continue with passkey

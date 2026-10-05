@@ -14,9 +14,8 @@ Civic platform connecting citizens with government. Three account tiers: individ
 
 ## Open items
 
-- No backend. `fixture` in `flow.ts` stands in for the user's name, districts, representatives and office approval.
-- No screen collects the user's name.
-- No option lists yet for occupation, income, household or religion.
+- No backend. `fixture` in `flow.ts` stands in for districts, representatives, office approval and a returning user's profile.
+- Occupation, income, household and religion lists are our own picks (NAICS, Census-style, major traditions); the spec leaves them open.
 - Undecided: third-party sign-in providers, ID-check provider, organization onboarding, state and local government levels.
 
 ## Never
