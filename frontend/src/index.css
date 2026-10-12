@@ -1047,3 +1047,41 @@ dialog .choice > span:nth-child(2) {
   color: var(--navy);
   font-weight: 700;
 }
+
+/* Desktop: the shell spans the window and the content sits in a readable centered column */
+@media (min-width: 768px) {
+  #root {
+    max-width: none;
+  }
+
+  .body {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* Bars span the window; their contents line up with the column */
+  .bar {
+    padding-inline: calc(50% - 312px);
+  }
+
+  .appbar {
+    padding-inline: calc(50% - 300px) calc(50% - 312px);
+  }
+
+  .tabbar {
+    padding-inline: calc(50% - 320px);
+  }
+
+  /* Actions follow the form instead of pinning to the bottom of a tall window */
+  .cta {
+    margin-top: 8px;
+  }
+
+  /* The bottom sheet becomes a centered modal */
+  dialog.sheet {
+    margin-bottom: auto;
+    padding-bottom: 20px;
+    border-radius: 20px;
+  }
+}
