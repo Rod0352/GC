@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from 'react'
-import { age, ageBand, collect, eighteenth, fixture, moduleOf, person, PNTS, useFlow, type Data } from '../flow.ts'
+import { defaultFollowing, handle, jurisdiction, memberRole } from '../api.ts'
+import { age, ageBand, collect, eighteenth, ISSUES, moduleOf, person, PNTS, useFlow, type Data } from '../flow.ts'
 import { COUNTRIES, STATES } from '../places.ts'
 import { Avatar, Banner, Caps, Choices, Dialog, Field, Icon, KV, Module, Placeholder, Screen, Select } from '../ui.tsx'
 
@@ -154,11 +155,13 @@ export function Abroad() {
 }
 
 export function Jurisdiction() {
+  const { data } = useFlow()
+  const { rows, reps } = jurisdiction(data)
   return (
     <Screen
       bar="Your districts"
       progress={['Address', 4, 9]}
-      heading="We found your representatives"
+      heading={reps.length ? 'We found your representatives' : 'We found your state'}
       sub="Confirm this looks right."
       footer={
         <>
@@ -170,23 +173,30 @@ export function Jurisdiction() {
       }
     >
       <Placeholder label="district map" />
-      <KV rows={fixture.districts as [string, string][]} />
-      <section className="section">
-        <h2 className="label">Your representatives</h2>
-        <ul className="people">
-          {fixture.reps.map(([name, role]) => (
-            <li className="person" key={name}>
-              <Avatar verified />
-              <span>
-                <b>{name}</b>
-                <small>{role}</small>
-              </span>
-              <Icon name="chev-r" />
-            </li>
-          ))}
-        </ul>
-        <p className="hint">State and local representatives arrive in Phase 3–4.</p>
-      </section>
+      <KV rows={rows} />
+      {reps.length ? (
+        <section className="section">
+          <h2 className="label">Your representatives</h2>
+          <ul className="people">
+            {reps.map((m) => (
+              <li className="person" key={m.id}>
+                <Avatar verified />
+                <span>
+                  <b>{m.name}</b>
+                  <small>{memberRole(m)}</small>
+                </span>
+                <Icon name="chev-r" />
+              </li>
+            ))}
+          </ul>
+          <p className="hint">State and local representatives arrive in Phase 3–4.</p>
+        </section>
+      ) : (
+        <Banner icon="info">
+          District lookup is not connected yet, so ZIP {data.zip} resolves to your state only. Your representatives
+          are assigned once it is.
+        </Banner>
+      )}
     </Screen>
   )
 }
@@ -451,18 +461,7 @@ export function Civic() {
         name="issues"
         multi
         variant="chips"
-        options={[
-          'Housing',
-          'Economy',
-          'Healthcare',
-          'Veterans',
-          'Education',
-          'Immigration',
-          'Climate',
-          'Public safety',
-          'Taxes',
-          'Tech',
-        ]}
+        options={ISSUES}
       />
       {issues.length > 0 && (
         <fieldset>
@@ -545,7 +544,7 @@ export function Privacy() {
         multi
         variant="chips"
         options={['Display name + district', 'Top issues', 'Party', 'Ideology', 'Demographics']}
-        hint={`Default: only '${person(data).display} · ${fixture.district}' is visible to others.`}
+        hint={`Default: only '${handle(data)}' is visible to others.`}
       />
     </Screen>
   )
@@ -554,11 +553,15 @@ export function Privacy() {
 const answered = (v: string | string[]) => (typeof v === 'string' ? v !== '' && v !== PNTS : v.length > 0 && v[0] !== PNTS)
 
 export function Review() {
-  const { data, submit } = useFlow()
+  const { data, submit, act } = useFlow()
   const module = moduleOf(data)
   const me = person(data)
   const enter = <button className="btn primary">Enter GC</button>
-  const onSubmit = () => submit({ context: 'personal' })
+  const onSubmit = () => {
+    // First time in: follow your representatives and chosen issues. Later visits keep what you follow.
+    if (!data.contexts.includes('personal')) act({ following: defaultFollowing(data) })
+    submit({ context: 'personal', contexts: [...new Set([...data.contexts, 'personal'])] })
+  }
 
   if (module.observer)
     return (
@@ -596,6 +599,7 @@ export function Review() {
     )
 
   const inUS = data.lives !== 'abroad'
+  const reps = jurisdiction(data).reps.length
   const given = ['gender', 'race', ...DEMOGRAPHICS.map(([, name]) => name)].filter((k) => answered(data[k as keyof Data]))
   const political = [data.party, data.ideology].filter(answered)
   return (
@@ -624,9 +628,9 @@ export function Review() {
         <div className="card person">
           <Avatar initials={me.initials} />
           <span>
-            <b>{inUS ? `${me.display} · ${fixture.district}` : me.display}</b>
+            <b>{handle(data)}</b>
             <small>
-              Following: {inUS ? `${fixture.reps.length} legislators · ` : ''}
+              Following: {reps ? `${reps} legislators · ` : ''}
               {data.issues.length} issues
             </small>
           </span>

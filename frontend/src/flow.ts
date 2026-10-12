@@ -1,6 +1,19 @@
 import { createContext, use } from 'react'
+import type { Activity } from './api.ts'
 
 export const PNTS = 'Prefer not to say'
+export const ISSUES = [
+  'Housing',
+  'Economy',
+  'Healthcare',
+  'Veterans',
+  'Education',
+  'Immigration',
+  'Climate',
+  'Public safety',
+  'Taxes',
+  'Tech',
+]
 
 // Every field is a string or string[] so forms can be read generically (see collect).
 export const initial = {
@@ -11,6 +24,8 @@ export const initial = {
   recovering: '',
   recovery: '',
   accountType: '',
+  /** Which of 'personal' and 'office' this account has finished setting up, and the one in use. */
+  contexts: [] as string[],
   context: '',
   // personal
   citizenship: '',
@@ -66,7 +81,8 @@ export type Data = typeof initial
 export const STEPS = [
   'welcome', 'create-account', 'verify', 'sign-in', 'recovery', 'account-type',
   'classification', 'address', 'abroad', 'jurisdiction', 'demographics', 'political', 'civic', 'privacy', 'review',
-  'gov-account', 'gov-office', 'gov-role', 'gov-verify', 'gov-approval', 'gov-review', 'enter-workspace', 'home',
+  'gov-account', 'gov-office', 'gov-role', 'gov-verify', 'gov-approval', 'gov-review', 'enter-workspace',
+  'home', 'government', 'legislation', 'community', 'messages', 'office',
 ] as const
 export type Step = (typeof STEPS)[number]
 
@@ -167,44 +183,33 @@ export function collect(form: HTMLFormElement, prev: Data): Partial<Data> {
   return out as Partial<Data>
 }
 
-// ponytail: sample data standing in for the API. Districts, representatives, office approvals and a
-// returning user's saved profile all need a backend. Replace when it exists.
-export const fixture = {
-  firstName: 'Ivan',
-  lastName: 'Rodriguez',
-  district: 'VA-11',
-  districts: [
-    ['Congressional district', 'VA-11'],
-    ['State', 'Virginia'],
-    ['County', 'Fairfax County'],
-    ['State senate / house', 'SD-37 · HD-40'],
-  ],
-  reps: [
-    ['Rep. Jane Doe', 'U.S. House · VA-11'],
-    ['Sen. Mark Roe', 'U.S. Senate · Virginia'],
-    ['Sen. Amy Lee', 'U.S. Senate · Virginia'],
-  ],
-  office: 'Office of Rep. Jane Doe',
-  member: 'Rep. Jane Doe (VA-11)',
-  admin: 'Sarah Kim (Chief of Staff)',
-  adminShort: 'S. Kim',
-}
-
 /** Name as entered at sign-up. Others only ever see first name and last initial ("Ivan R."). */
 export function person(d: Data) {
-  const { firstName, middleInitial, lastName } = d.firstName && d.lastName ? d : { ...fixture, middleInitial: '' }
+  const { firstName, middleInitial, lastName } = d
   return {
     full: [firstName, middleInitial && `${middleInitial.toUpperCase()}.`, lastName].filter(Boolean).join(' '),
-    display: `${firstName} ${lastName[0].toUpperCase()}.`,
-    initials: (firstName[0] + lastName[0]).toUpperCase(),
+    display: lastName ? `${firstName} ${lastName[0].toUpperCase()}.` : firstName,
+    initials: firstName && lastName ? (firstName[0] + lastName[0]).toUpperCase() : undefined,
   }
 }
+
+/** Staff act on permissions an office administrator delegates; officials hold them outright (Access Matrix section I). */
+export const delegated = (d: Data) => d.role !== 'elected' && d.role !== 'official'
+
+export const roleLine = (d: Data) =>
+  [{ elected: 'Elected official', official: 'Government official' }[d.role] ?? 'Staff', d.title].filter(Boolean).join(' · ')
 
 export type Flow = {
   data: Data
   set: (patch: Partial<Data>) => void
   /** Saves the patch and moves to the next step. */
   submit: (patch?: Partial<Data>) => void
+  /** URL segments after the step: `#legislation/hr-2041` gives `['hr-2041']`. */
+  path: string[]
+  me: Activity
+  act: (patch: Partial<Activity>) => void
+  /** Replaces the whole session: an account signing in, or nothing on sign-out. */
+  load: (data?: Partial<Data>, activity?: Partial<Activity>) => void
 }
 export const FlowContext = createContext<Flow>(null!)
 export const useFlow = () => use(FlowContext)

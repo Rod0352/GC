@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { account, demoAccounts } from '../api.ts'
 import { collect, useFlow } from '../flow.ts'
 import { Banner, Choices, Field, Icon, Placeholder, Screen } from '../ui.tsx'
 
 export function Welcome() {
+  const { load } = useFlow()
   return (
     <Screen
       className="welcome"
@@ -16,7 +18,8 @@ export function Welcome() {
       footer={
         <>
           <p className="note">By continuing you agree to the Terms and Privacy Policy.</p>
-          <a className="btn primary" href="#create-account">
+          {/* A new account starts from a clean session, not on top of whoever was signed in. */}
+          <a className="btn primary" href="#create-account" onClick={() => load()}>
             Create account
           </a>
           <a className="btn ghost" href="#sign-in">
@@ -160,19 +163,48 @@ export function Verify() {
 }
 
 export function SignIn() {
-  const { submit } = useFlow()
+  const { data, set, load } = useFlow()
   const id = useRef<HTMLInputElement>(null)
+
+  // shortcut: no password is checked, and only the demo accounts and this browser session's own account
+  // exist. Replace with the auth API.
+  function signIn(value: string) {
+    const found = account(value)
+    const d = found?.data ?? (data.id === value.trim() ? data : undefined)
+    const contexts = d?.contexts ?? []
+    if (contexts.length === 0) {
+      id.current!.setCustomValidity('No GC account matches that email or phone.')
+      id.current!.reportValidity()
+      return
+    }
+    // With both a personal and an office context, the switcher opens for the choice.
+    const context = contexts.length > 1 ? '' : contexts[0]
+    if (found) load({ ...found.data, context }, found.activity)
+    else set({ context })
+    location.assign(context === 'office' ? '#enter-workspace' : '#home')
+  }
+
   return (
     <Screen
       bar="Sign in"
       heading="Welcome back"
+      onSubmit={() => signIn(id.current!.value)}
       footer={
         <a className="btn ghost" href="#create-account">
           Create an account
         </a>
       }
     >
-      <Field ref={id} label="Email or phone" name="id" icon="mail" autoComplete="username" required />
+      {/* No name: typing here must not rewrite the id of the account already in this session. */}
+      <Field
+        ref={id}
+        label="Email or phone"
+        icon="mail"
+        autoComplete="username"
+        required
+        defaultValue={data.id}
+        onInput={(e) => e.currentTarget.setCustomValidity('')}
+      />
       <Field label="Password" icon="lock" type="password" autoComplete="current-password" required />
       <a className="link end" href="#recovery">
         Forgot password?
@@ -181,12 +213,22 @@ export function SignIn() {
       <button
         type="button"
         className="btn secondary"
-        onClick={() => id.current?.reportValidity() && submit({ id: id.current.value })}
+        onClick={() => id.current?.reportValidity() && signIn(id.current.value)}
       >
         <Icon name="key" />
         Sign in with passkey
       </button>
       <Banner icon="swap">If you hold a personal and an office account, you'll pick a context after sign-in.</Banner>
+      <section className="section">
+        <h2 className="label">Demo accounts</h2>
+        <div className="grid3">
+          {demoAccounts().map((a) => (
+            <button type="button" className="btn small secondary" key={a.data.id} onClick={() => signIn(a.data.id)}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </section>
     </Screen>
   )
 }

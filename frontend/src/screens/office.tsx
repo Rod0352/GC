@@ -1,16 +1,13 @@
 import { useState } from 'react'
-import { fixture, moduleOf, person, useFlow, type Data } from '../flow.ts'
-import { Avatar, Banner, Caps, Choices, Dialog, Field, Icon, KV, Module, Placeholder, Screen, Select } from '../ui.tsx'
-import type { IconName } from '../ui.tsx'
+import { admin, memberLabel, members, officeOf } from '../api.ts'
+import { delegated, person, roleLine, useFlow } from '../flow.ts'
+import { Avatar, Banner, Caps, Choices, Field, Icon, KV, Module, Placeholder, Screen, Select } from '../ui.tsx'
 
 const ROLES = [
   { value: 'elected', label: 'Elected official (the member)' },
   { value: 'official', label: 'Government official' },
   { value: 'staff', label: 'Staff — I support this office' },
 ]
-
-const roleLine = (d: Data) =>
-  `${{ elected: 'Elected official', official: 'Government official' }[d.role] ?? 'Staff'} · ${d.title || 'Legislative Assistant'}`
 
 export function GovAccount() {
   return (
@@ -31,7 +28,7 @@ export function GovAccount() {
         required
         hint="Accepted domains: .gov, .mil, house.gov, senate.gov, state and local domains on file."
       />
-      <Field label="Office / institution" name="office" icon="gov" placeholder={fixture.office} required />
+      <Field label="Office / institution" name="office" icon="gov" placeholder="Office of Rep. Jane Doe" required />
       <Field
         label="Office phone (optional)"
         name="officePhone"
@@ -72,7 +69,7 @@ export function GovOffice() {
         required
         options={['U.S. House of Representatives', 'U.S. Senate', 'Committee or subcommittee', 'Federal agency']}
       />
-      <Select label="Member / office" name="member" options={[fixture.member]} placeholder="Select…" required />
+      <Select label="Member / office" name="member" options={members().map(memberLabel)} placeholder="Select…" required />
       <Select
         label="Workspace / department"
         name="workspace"
@@ -172,16 +169,22 @@ export function GovApproval() {
   const { data, set } = useFlow()
   const [resent, setResent] = useState(false)
   const [sent] = useState(() => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
+  const approver = admin(data)
   return (
     <Screen
       bar="Approval"
       progress={['Approval', 5, 6]}
       top={<Placeholder label="waiting illustration" />}
       heading="Waiting for your office administrator"
-      sub={`${fixture.admin} has been asked to approve your access to ${data.office || fixture.office}. GC assigns your permission level when they do.`}
+      sub={`${approver ? `${approver.name} (${approver.title})` : 'Your office administrator'} has been asked to approve your access to ${data.office}. GC assigns your permission level when they do.`}
       footer={
         <>
-          <a className="btn secondary" href="#home" onClick={() => set({ context: 'personal' })}>
+          {/* Without a personal account yet, this starts one. */}
+          <a
+            className="btn secondary"
+            href={data.contexts.includes('personal') ? '#home' : '#account-type'}
+            onClick={() => set({ context: 'personal' })}
+          >
             Use my personal account meanwhile
           </a>
           <button type="button" className="btn ghost" disabled={resent} onClick={() => setResent(true)}>
@@ -192,7 +195,7 @@ export function GovApproval() {
     >
       <KV
         rows={[
-          ['Office', data.member || fixture.member],
+          ['Office', data.member],
           ['Requested role', roleLine(data)],
           ['Status', 'Pending'],
           ['Sent', `Today, ${sent}`],
@@ -203,9 +206,9 @@ export function GovApproval() {
 }
 
 export function GovReview() {
-  const { data } = useFlow()
-  const staff = data.role === 'staff' || !data.role
-  // Staff get what the office administrator delegates; officials hold these outright (Access Matrix section I).
+  const { data, submit } = useFlow()
+  const staff = delegated(data)
+  const approver = admin(data)
   const permissions: [string, boolean][] = [
     ['Constituent inquiries', true],
     ['Draft official posts (needs approval)', true],
@@ -221,18 +224,19 @@ export function GovReview() {
       progress={['Review', 6, 6]}
       heading="Your office context"
       sub="This is separate from any personal GC account you hold."
+      onSubmit={() => submit({ contexts: [...new Set([...data.contexts, 'office'])] })}
       footer={<button className="btn primary">Enter office workspace</button>}
     >
       <Module
         eyebrow="GC LEGISLATIVE OFFICE"
-        name={data.office || fixture.office}
-        line={`${fixture.district} · ${data.branch || 'U.S. House'} · ${data.workspace || 'Legislative Affairs'}`}
+        name={data.office}
+        line={[officeOf(data)?.seat, data.branch, data.workspace].filter(Boolean).join(' · ')}
         tagline="Represent → Communicate → Legislate → Oversight → Constituents"
       />
       <KV
         rows={[
           ['Role', roleLine(data)],
-          ['Permission level', staff ? `Delegated (by ${fixture.adminShort})` : data.roleLevel],
+          ['Permission level', staff ? `Delegated${approver ? ` (by ${approver.name})` : ''}` : data.roleLevel],
           ['Verified', 'Email · Office · Identity'],
         ]}
       />
@@ -258,16 +262,18 @@ export function EnterWorkspace() {
           </span>
         </div>
       }
-      heading={`Entering ${data.office || fixture.office}`}
+      heading={`Entering ${data.office}`}
       sub={`Acting as: ${roleLine(data)}`}
       footer={
         <>
-          <a className="btn primary" href="#home" onClick={() => set({ context: 'office' })}>
+          <a className="btn primary" href="#office" onClick={() => set({ context: 'office' })}>
             Continue
           </a>
-          <a className="btn ghost" href="#home" onClick={() => set({ context: 'personal' })}>
-            Switch to personal instead
-          </a>
+          {data.contexts.includes('personal') && (
+            <a className="btn ghost" href="#home" onClick={() => set({ context: 'personal' })}>
+              Switch to personal instead
+            </a>
+          )}
         </>
       }
     >
@@ -279,85 +285,3 @@ export function EnterWorkspace() {
   )
 }
 
-const TABS: [string, IconName][] = [
-  ['Home', 'home'],
-  ['Government', 'gov'],
-  ['Legislation', 'doc'],
-  ['Community', 'people'],
-  ['Messages', 'chat'],
-]
-
-/** App shell behind the context switcher. The feed itself is not designed yet. */
-export function Home() {
-  const { data, set } = useFlow()
-  const [open, setOpen] = useState(!data.context)
-
-  const contexts: [id: string, icon: IconName, title: string, sub: string][] = [
-    ['personal', 'people', `Personal — ${person(data).display} · ${fixture.district}`, moduleOf(data).name],
-    ['office', 'gov', data.office || fixture.office, `${roleLine(data)} · verified`],
-  ]
-
-  function pick(id: string) {
-    set({ context: id })
-    setOpen(false)
-    // Every switch into an office context repeats the "Entering…" notice.
-    if (id === 'office') location.assign('#enter-workspace')
-  }
-
-  return (
-    <main className="screen">
-      <header className="appbar">
-        <span className="logo" aria-hidden="true">
-          GC
-        </span>
-        <h1>Government &amp; Citizens</h1>
-        <button type="button" className="icon-btn" aria-label="Search">
-          <Icon name="search" size={22} />
-        </button>
-        <button type="button" className="icon-btn" aria-label="Notifications">
-          <Icon name="bell" size={22} />
-        </button>
-      </header>
-      <div className="body">
-        <label className="control search">
-          <Icon name="search" />
-          <input type="search" placeholder="Search bills, members, issues" aria-label="Search bills, members, issues" />
-        </label>
-        <Placeholder label="feed" />
-        <Placeholder label="feed" />
-      </div>
-      <nav className="tabbar" aria-label="Primary">
-        {TABS.map(([label, icon], i) => (
-          <button type="button" key={label} aria-current={i === 0 ? 'page' : undefined}>
-            <Icon name={icon} size={22} />
-            {label}
-          </button>
-        ))}
-      </nav>
-      <Dialog open={open} title="Switch context" sheet onClose={() => setOpen(false)}>
-        {contexts.map(([id, icon, title, sub]) => (
-          <button
-            type="button"
-            className="choice"
-            key={id}
-            aria-pressed={data.context === id}
-            onClick={() => pick(id)}
-          >
-            <span className={data.context === id ? 'tile on' : 'tile'}>
-              <Icon name={icon} />
-            </span>
-            <span>
-              <b>{title}</b>
-              <small>{sub}</small>
-            </span>
-            {data.context === id && <Icon name="check" />}
-          </button>
-        ))}
-        <a className="btn dashed" href="#account-type">
-          Add another context
-        </a>
-        <p className="hint">Contexts are permission-separated. Switching is logged.</p>
-      </Dialog>
-    </main>
-  )
-}

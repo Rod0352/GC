@@ -72,7 +72,8 @@ hr {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -351,7 +352,8 @@ legend {
 @supports (-webkit-touch-callout: none) {
   .control input,
   .control select,
-  .otp input {
+  .otp input,
+  textarea {
     font-size: 16px;
   }
 }
@@ -502,7 +504,14 @@ legend {
   font-size: 13px;
 }
 
-.segmented .choice:has(:checked) {
+.segmented button.choice {
+  background: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.segmented .choice:has(:checked),
+.segmented .choice[aria-pressed='true'] {
   background: #fff;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
   color: var(--ink);
@@ -999,7 +1008,13 @@ dialog .choice > span:nth-child(2) {
   flex: 1;
 }
 
-/* Home shell */
+/* Signed-in shell: app bar, navigation, page */
+
+.shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
 
 .appbar {
   display: flex;
@@ -1011,9 +1026,8 @@ dialog .choice > span:nth-child(2) {
   font-weight: 700;
 }
 
-.appbar h1 {
+.brand {
   flex: 1;
-  font-size: inherit;
 }
 
 .search {
@@ -1021,9 +1035,11 @@ dialog .choice > span:nth-child(2) {
   background: var(--surface);
 }
 
+/* Before the page in the DOM so keyboards reach it first; drawn at the bottom on phones */
 .tabbar {
   position: sticky;
   bottom: 0;
+  order: 1;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   padding: 6px 0;
@@ -1031,21 +1047,256 @@ dialog .choice > span:nth-child(2) {
   background: #fff;
 }
 
-.tabbar button {
+.tabbar a {
   display: grid;
+  place-content: center;
   justify-items: center;
   gap: 2px;
   min-height: 44px;
-  border: 0;
-  background: none;
   color: var(--muted);
   font-size: 10px;
-  cursor: pointer;
+  font-weight: 400;
+  text-decoration: none;
 }
 
 .tabbar [aria-current] {
   color: var(--navy);
   font-weight: 700;
+}
+
+/* Signed-in content */
+
+.btn.small {
+  width: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.body > .link,
+.section > .link {
+  align-self: flex-start;
+  justify-self: start;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.feed,
+.posts {
+  display: grid;
+  gap: 10px;
+}
+
+.feed .card,
+.posts .card {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.title {
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.title:hover {
+  text-decoration: underline;
+}
+
+.title[aria-current] {
+  text-decoration: underline;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--track);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tag:is(.new, .pending, .awaiting-approval) {
+  background: var(--warn);
+}
+
+.tag:is(.answered, .published, .active, .yea) {
+  background: color-mix(in srgb, var(--green) 18%, #fff);
+}
+
+.tag:is(.nay, .declined) {
+  background: color-mix(in srgb, var(--red) 18%, #fff);
+}
+
+.rows li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hair);
+  font-size: 14px;
+}
+
+.rows li > :first-child {
+  flex: 1;
+  min-width: 12ch;
+}
+
+.rows b,
+.rows small {
+  display: block;
+}
+
+.rows a {
+  font-weight: 400;
+}
+
+.rows time {
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.person > a {
+  flex: 1;
+  color: inherit;
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.composer {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.composer .field {
+  width: 100%;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  resize: vertical;
+}
+
+.poll {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.poll legend {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.bars {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: 7.5em minmax(60px, 1fr) 4ch;
+  align-items: center;
+  gap: 10px;
+}
+
+.bars meter {
+  width: 100%;
+  height: 8px;
+}
+
+.bars meter::-webkit-meter-bar {
+  border: 0;
+  border-radius: 4px;
+  background: var(--track);
+}
+
+.bars meter::-webkit-meter-optimum-value {
+  border-radius: 4px;
+  background: var(--navy);
+}
+
+.bars meter::-moz-meter-bar {
+  border-radius: 4px;
+  background: var(--navy);
+}
+
+.bars b {
+  text-align: right;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.stats li {
+  display: grid;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stats b {
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.stats a {
+  font-weight: 400;
+}
+
+.cols2,
+.panes {
+  display: grid;
+  align-items: start;
+  gap: 24px;
+}
+
+.cols2 > .section,
+.panes > .section {
+  gap: 12px;
+}
+
+.panes h2 {
+  font-size: 18px;
+}
+
+/* Phones show one pane at a time: the list, or the inquiry that is open */
+.panes.open > :first-child,
+.panes:not(.open) > :last-child {
+  display: none;
 }
 
 /* Desktop: the shell spans the window and the content sits in a readable centered column */
@@ -1060,17 +1311,9 @@ dialog .choice > span:nth-child(2) {
     margin: 0 auto;
   }
 
-  /* Bars span the window; their contents line up with the column */
+  /* The bar spans the window; its contents line up with the column */
   .bar {
     padding-inline: calc(50% - 312px);
-  }
-
-  .appbar {
-    padding-inline: calc(50% - 300px) calc(50% - 312px);
-  }
-
-  .tabbar {
-    padding-inline: calc(50% - 320px);
   }
 
   /* Actions follow the form instead of pinning to the bottom of a tall window */
@@ -1083,5 +1326,70 @@ dialog .choice > span:nth-child(2) {
     margin-bottom: auto;
     padding-bottom: 20px;
     border-radius: 20px;
+  }
+
+  /* Signed in: navigation becomes a sidebar with the page beside it */
+  .shell {
+    display: grid;
+    grid-template: auto 1fr / 220px minmax(0, 1fr);
+  }
+
+  .appbar {
+    grid-column: 1 / -1;
+  }
+
+  .tabbar {
+    top: 0;
+    bottom: auto;
+    order: 0;
+    align-self: start;
+    grid-template-columns: none;
+    gap: 2px;
+    padding: 16px 12px;
+    border-top: 0;
+  }
+
+  .tabbar a {
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: 12px;
+    padding: 0 12px;
+    border-radius: var(--r);
+    font-size: 14px;
+  }
+
+  .tabbar [aria-current] {
+    background: var(--tint);
+  }
+
+  .shell > .body {
+    max-width: 720px;
+    margin: 0;
+    padding: 24px 32px 48px;
+    border-left: 1px solid var(--hair);
+  }
+
+  .shell.wide > .body {
+    max-width: 1120px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .cols2 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .panes {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .panes.open > :first-child,
+  .panes:not(.open) > :last-child {
+    display: grid;
+  }
+
+  /* Both panes are visible, so the way back to the list is not needed */
+  .panes .link {
+    display: none;
   }
 }

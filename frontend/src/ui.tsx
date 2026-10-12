@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, type ComponentProps, type FormEvent, type ReactNode } from 'react'
-import { collect, PNTS, useFlow, type Data } from './flow.ts'
+import { useEffect, useId, useRef, useState, type ComponentProps, type FormEvent, type ReactNode } from 'react'
+import { ago, handle, toggle, type Post } from './api.ts'
+import { collect, moduleOf, PNTS, roleLine, useFlow, type Data } from './flow.ts'
 
 // Redrawn stand-ins: the wireframe icons could not be exported from Figma.
 const ICONS = {
@@ -341,4 +342,195 @@ export function Dialog({ open, title, sheet, onClose, children }: DialogProps) {
       {children}
     </dialog>
   )
+}
+
+type ShellProps = {
+  nav: readonly (readonly [label: string, icon: IconName, href: string])[]
+  title: string
+  /** Link back to the list a detail page belongs to. */
+  back?: readonly [label: string, href: string]
+  /** Let the page use the full desktop width. */
+  wide?: boolean
+  children: ReactNode
+}
+
+/** Signed-in frame: app bar, primary navigation, the page, and the context switcher. */
+export function Shell({ nav, title, back, wide, children }: ShellProps) {
+  const { data, set, load } = useFlow()
+  const [open, setOpen] = useState(!data.context)
+  const h1 = useRef<HTMLHeadingElement>(null)
+  const here = location.hash
+  // The deepest navigation entry the current URL sits under.
+  const current = nav.reduce(
+    (best, [, , href]) => ((here === href || here.startsWith(`${href}/`)) && href.length > best.length ? href : best),
+    '',
+  )
+
+  // Runs on every route change, including list-to-detail moves inside one tab.
+  useEffect(() => {
+    document.title = `${title} · GC`
+    scrollTo(0, 0)
+    h1.current?.focus({ preventScroll: true })
+  }, [title, here])
+
+  const contexts = (
+    [
+      ['personal', 'people', `Personal — ${handle(data)}`, moduleOf(data).name],
+      ['office', 'gov', data.office, `${roleLine(data)} · verified`],
+    ] as const
+  ).filter(([id]) => data.contexts.includes(id))
+
+  function pick(id: string) {
+    set({ context: id })
+    setOpen(false)
+    // Every switch into an office context repeats the "Entering…" notice.
+    location.assign(id === 'office' ? '#enter-workspace' : '#home')
+  }
+
+  return (
+    <div className={wide ? 'shell wide' : 'shell'}>
+      <header className="appbar">
+        <span className="logo" aria-hidden="true">
+          GC
+        </span>
+        <span className="brand">Government &amp; Citizens</span>
+        <button type="button" className="btn small ghost" onClick={() => setOpen(true)}>
+          <Icon name="swap" />
+          {data.context === 'office' ? 'Office' : 'Personal'}
+          <span className="sr-only"> context. Switch context</span>
+        </button>
+      </header>
+      <nav className="tabbar" aria-label="Primary">
+        {nav.map(([label, icon, href]) => (
+          <a key={href} href={href} aria-current={href === current ? 'page' : undefined}>
+            <Icon name={icon} size={22} />
+            {label}
+          </a>
+        ))}
+      </nav>
+      <main className="body">
+        {back && (
+          <a className="link" href={back[1]}>
+            ‹ {back[0]}
+          </a>
+        )}
+        <h1 ref={h1} tabIndex={-1}>
+          {title}
+        </h1>
+        {children}
+      </main>
+      <Dialog open={open} title="Switch context" sheet onClose={() => setOpen(false)}>
+        {contexts.map(([id, icon, name, sub]) => (
+          <button type="button" className="choice" key={id} aria-pressed={data.context === id} onClick={() => pick(id)}>
+            <span className={data.context === id ? 'tile on' : 'tile'}>
+              <Icon name={icon} />
+            </span>
+            <span>
+              <b>{name}</b>
+              <small>{sub}</small>
+            </span>
+            {data.context === id && <Icon name="check" />}
+          </button>
+        ))}
+        <a className="btn dashed" href="#account-type">
+          Add another context
+        </a>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => {
+            load()
+            location.assign('#welcome')
+          }}
+        >
+          Sign out
+        </button>
+        <p className="hint">Contexts are permission-separated. Switching is logged.</p>
+      </Dialog>
+    </div>
+  )
+}
+
+/** A conversation or comment list, oldest first. New entries are announced to screen readers. */
+export function Posts({ posts, empty }: { posts: Post[]; empty: string }) {
+  return (
+    <ul className="posts" aria-live="polite">
+      {posts.length === 0 && <li className="hint">{empty}</li>}
+      {posts.map((p) => (
+        <li key={p.id} className="card">
+          <p className="meta">
+            <b>{p.by}</b>
+            <time dateTime={new Date(p.at).toISOString()}>{ago(p.at)}</time>
+          </p>
+          <p>{p.text}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+type ComposerProps = { label: string; button?: string; blocked?: string; onSend: (text: string) => void }
+
+/** One text box and a send button. `blocked` replaces it with the reason this account cannot write here. */
+export function Composer({ label, button = 'Post', blocked, onSend }: ComposerProps) {
+  if (blocked)
+    return (
+      <Banner icon="lock" tone="tint">
+        {blocked}
+      </Banner>
+    )
+  return (
+    <form
+      className="composer"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const text = String(new FormData(e.currentTarget).get('text')).trim()
+        if (!text) return
+        onSend(text)
+        e.currentTarget.reset()
+      }}
+    >
+      <label className="field">
+        <span className="label">{label}</span>
+        <textarea name="text" rows={3} maxLength={1000} required />
+      </label>
+      <button className="btn small primary">{button}</button>
+    </form>
+  )
+}
+
+/** Follow or unfollow a member, bill or issue. `name` tells screen-reader users which one. */
+export function Follow({ id, name }: { id: string; name: string }) {
+  const { me, act } = useFlow()
+  const on = me.following.includes(id)
+  return (
+    <button
+      type="button"
+      className={on ? 'btn small secondary' : 'btn small primary'}
+      onClick={() => act({ following: toggle(me.following, id) })}
+    >
+      {on ? 'Following' : 'Follow'}
+      <span className="sr-only"> {name}</span>
+    </button>
+  )
+}
+
+/** Labelled horizontal bars, scaled to the largest value. */
+export function Bars({ rows }: { rows: readonly (readonly [label: string, value: number])[] }) {
+  const max = Math.max(1, ...rows.map(([, value]) => value))
+  return (
+    <ul className="bars">
+      {rows.map(([label, value]) => (
+        <li key={label}>
+          <span>{label}</span>
+          <meter max={max} value={value} aria-label={label} />
+          <b>{value}</b>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function Tag({ children }: { children: string }) {
+  return <span className={`tag ${children.toLowerCase().replace(/\W+/g, '-')}`}>{children}</span>
 }

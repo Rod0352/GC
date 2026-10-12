@@ -6,15 +6,19 @@ Civic platform connecting citizens with government. Three account tiers: individ
 
 ## Frontend map
 
-- `src/flow.ts` — form data, step list, `next()` routing, module rules, sample `fixture` data.
+- `src/flow.ts` — form data, step list, `next()` routing, module rules.
+- `src/api.ts` — the only place screens read platform data from. `src/seed.ts` — all demo data and the three demo accounts; only `api.ts` imports it.
 - `src/ui.tsx` — shared pieces (`Screen`, `Field`, `Select`, `Choices`, …). `src/index.css` — tokens and every style.
-- `src/screens/` — one component per step, in `account.tsx`, `personal.tsx`, `office.tsx`. `App.tsx` maps the URL hash to a step.
+- `src/screens/` — one component per step, in `account.tsx`, `personal.tsx`, `office.tsx`. Signed-in screens: `citizen.tsx` (the five tabs) and `workspace.tsx` (office workspace), both inside `Shell` from `ui.tsx`.
+- `App.tsx` maps the URL hash (`#step` or `#step/id`) to a screen, keeps the session in `sessionStorage`, and blocks signed-in screens without the right context.
 - Inputs are native and uncontrolled; `Screen` reads the form into flow data. Give a control a `name` that is a key of `Data`. Passwords and codes get no `name`, so they never enter app state.
 - Source design: Figma "Onboarding / Sign-in" (file key `f6oRwaMnTVgD1xIK3OkECw`). Wireframes only, no visual design yet.
 
 ## Open items
 
-- No backend. `fixture` in `flow.ts` stands in for districts, representatives, office approval and a returning user's profile.
+- No backend. `seed.ts`, read through `api.ts`, stands in for it; no password is checked. Only ZIP 22030 maps to a district, other addresses resolve to their state.
+- Citizen tabs and the office workspace were laid out from the Access Matrix and GC 101, not from Figma designs.
+- Not built: user-to-user messaging, creating polls or communities, uploading legislation, election information, committees.
 - Occupation, income, household and religion lists are our own picks (NAICS, Census-style, major traditions); the spec leaves them open.
 - Undecided: third-party sign-in providers, ID-check provider, organization onboarding, state and local government levels.
 
@@ -47,7 +51,7 @@ Civic platform connecting citizens with government. Three account tiers: individ
 
 - "GC Sign-In Flows / Demographics" spec wins over "GC 101" where they conflict.
 - "GC Master Access Matrix V3" defines what each tier can see and do.
-- Mobile-first at 390px for onboarding and citizen screens; 1440px desktop for office, agency, and org workspaces.
+- Every screen works from 390px to 1440px. Onboarding and citizen screens are designed phone-first; office, agency, and org workspaces desktop-first.
 - WCAG 2.2 AA: semantic HTML, labelled inputs, keyboard access, visible focus, sufficient contrast.
 
 ## Replies
